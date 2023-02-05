@@ -15,7 +15,7 @@ __inline__ __device__ T WarpReduceSum(T val, unsigned lane_mask) {
 /* Calculate the sum of all elements in a block */
 template <typename T>
 __inline__ __device__ T BlockReduceSum(T val, unsigned mask) {
-    static __shared__ T shared[WARP_SIZE];
+    __shared__ T shared[WARP_SIZE];
     int lane = threadIdx.x & 0x1f;
     int wid = threadIdx.x >> 5;
 
