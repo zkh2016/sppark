@@ -5,6 +5,7 @@
 #define HALF_WARP 16
 #define WARP_SIZE 32
 
+#ifdef __CUDA_ARCH__
 template <typename T>
 __inline__ __device__ T WarpReduceSum(T val, unsigned lane_mask) {
     for (int mask = HALF_WARP; mask > 0; mask >>= 1)
@@ -35,4 +36,5 @@ __inline__ __device__ T BlockReduceSum(T val, unsigned mask) {
     return val;
 }
 
+#endif
 #endif

@@ -97,46 +97,54 @@ static __device__ int is_unique(int wval, int dir=0)
     int negatives = 0;
     int uniq = 1;
 
-    //faster
-    int b = wvals[tid];
-    int reduce_val = b < 0;
-    negatives = BlockReduceSum<int>(reduce_val, FINAL_MASK);
-    const int N = NTHREADS >> 5;
-    __shared__ int flags[N];
-    if(tid < N){
-        flags[tid] = 0;
-    }
-    __syncthreads();
-    int flag = (b==wval);
-    if(flag == 1){
-        atomicOr(&flags[tid>>5], 1<<(tid & 31));
-    }
-    __syncthreads();
+     #pragma unroll 16
+     for (uint32_t i=0; i<NTHREADS; i++) {
+         int b = wvals[i];   // compiled as 128-bit [broadcast] loads:-)
+         if (((i<tid)^dir) && i!=tid && wval==b)
+             uniq = 0;
+         negatives += (b < 0);
+     }
 
-    int index = tid >> 5;
-    int bit = tid & 31;
-    int value = flags[index];
-    if(dir == 0){
-        //only valid when i in [0,tid)
-        value <<= (32-bit);
-        uniq = value != 0;
-        for(int i = 0; i < index; i++){
-            if(flags[i] != 0){
-                uniq = 0;
-                break;
-            }
-        }
-    }else{//dir == 1
-        //only valid when i in (tid, NTHREADS)
-        value >>= bit;
-        uniq = value != 0;
-        for(int i = index+1; i < N; i++){
-            if(flags[i] != 0){
-                uniq = 0;
-                break;
-            }
-        }
-    }
+    //faster
+    //int b = wvals[tid];
+    //int reduce_val = b < 0;
+    //negatives = BlockReduceSum<int>(reduce_val, FINAL_MASK);
+    //const int N = NTHREADS >> 5;
+    //__shared__ int flags[N];
+    //if(tid < N){
+    //    flags[tid] = 0;
+    //}
+    //__syncthreads();
+    //int flag = (b==wval);
+    //if(flag == 1){
+    //    atomicOr(&flags[tid>>5], 1<<(tid & 31));
+    //}
+    //__syncthreads();
+
+    //int index = tid >> 5;
+    //int bit = tid & 31;
+    //int value = flags[index];
+    //if(dir == 0){
+    //    //only valid when i in [0,tid)
+    //    value <<= (32-bit);
+    //    uniq = value != 0;
+    //    for(int i = 0; i < index; i++){
+    //        if(flags[i] != 0){
+    //            uniq = 0;
+    //            break;
+    //        }
+    //    }
+    //}else{//dir == 1
+    //    //only valid when i in (tid, NTHREADS)
+    //    value >>= bit;
+    //    uniq = value != 0;
+    //    for(int i = index+1; i < N; i++){
+    //        if(flags[i] != 0){
+    //            uniq = 0;
+    //            break;
+    //        }
+    //    }
+    //}
 
     return uniq | (int)(NTHREADS-1-negatives)>>31;
     // return value is 1, 0 or -1.
